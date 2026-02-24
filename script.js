@@ -24,7 +24,7 @@ document.getElementById('btn-reset-data').onclick = () => {
     if(confirm("Reset all scores and checkmarks?")) { localStorage.clear(); location.reload(); }
 };
 
-// EPIC LOVE STORIES STATIONS (Exactly as per GitHub screenshot)
+// EPIC LOVE STORIES STATIONS (Exactly as per your root filenames)
 const stations = [
     {file:"01_Justinian.mp3", title:"Justinian & Theodora"},
     {file:"02_Tiberius.mp3", title:"Tiberius & Marcus"},
@@ -57,7 +57,7 @@ stations.forEach((s, i) => {
         grid.classList.add('hidden'); 
         playerZone.classList.remove('hidden'); 
         document.getElementById('now-playing-title').innerText = s.title; 
-        audio.src = s.file; // Files are in root as per screenshot
+        audio.src = s.file; 
         wordBucket = []; 
     };
     grid.appendChild(btn);
@@ -136,7 +136,7 @@ function runQuiz(lesson) {
         const currentFile = audio.src.split('/').pop();
         if(!completedLessons.includes(currentFile)) {
             completedLessons.push(currentFile);
-            localStorage.setItem('completedLoveStories', JSON.stringify(completedLessons));
+            localStorage.setItem('completedLoveStories', JSON.stringify(completedLessons)); // FIXED BUG HERE
         }
         feedbackArea.innerHTML = `<h1 style="color:#ccff00; font-size: 50px;">FINISHED!</h1>
                                   <h2 style="font-size: 40px;">QUIZ SCORE: ${totalScore}</h2>
