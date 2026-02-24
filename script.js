@@ -5,10 +5,10 @@ const splash = document.getElementById('splash-screen'), instr = document.getEle
       gameZone = document.getElementById('game-zone'), gameBoard = document.getElementById('game-board'),
       feedbackArea = document.getElementById('quiz-feedback-area'), ptsVal = document.getElementById('points-val');
 
-// PERSISTENCE DATA (Unique to Love Stories)
+// PERSISTENCE DATA
 let lifetimeScore = parseInt(localStorage.getItem('loveStoryScore')) || 0;
 let completedLessons = JSON.parse(localStorage.getItem('completedLoveStories')) || [];
-ptsVal.innerText = lifetimeScore;
+if(ptsVal) ptsVal.innerText = lifetimeScore;
 
 let wordBucket = []; let currentQ = 0; let attempts = 0; let totalScore = 0; let firstCard = null;
 
@@ -24,7 +24,7 @@ document.getElementById('btn-reset-data').onclick = () => {
     if(confirm("Reset all scores and checkmarks?")) { localStorage.clear(); location.reload(); }
 };
 
-// EPIC LOVE STORIES STATIONS (Names match your repo files exactly)
+// EPIC LOVE STORIES STATIONS (Exactly as per GitHub screenshot)
 const stations = [
     {file:"01_Justinian.mp3", title:"Justinian & Theodora"},
     {file:"02_Tiberius.mp3", title:"Tiberius & Marcus"},
@@ -57,7 +57,7 @@ stations.forEach((s, i) => {
         grid.classList.add('hidden'); 
         playerZone.classList.remove('hidden'); 
         document.getElementById('now-playing-title').innerText = s.title; 
-        audio.src = s.file; // Direct root path as per screenshot
+        audio.src = s.file; // Files are in root as per screenshot
         wordBucket = []; 
     };
     grid.appendChild(btn);
@@ -94,7 +94,9 @@ document.getElementById('btn-read').onclick = () => {
 
 // MATCH GAME
 document.getElementById('btn-game').onclick = () => {
-    const fn = audio.src.split('/').pop(); const lesson = lessonData[fn][0];
+    const fn = audio.src.split('/').pop(); const lessonArr = lessonData[fn];
+    if(!lessonArr) return;
+    const lesson = lessonArr[0];
     transcript.classList.add('hidden'); gameZone.classList.remove('hidden'); feedbackArea.innerHTML = "";
     gameBoard.innerHTML = ""; firstCard = null; gameBoard.style.display = "grid";
     let set = [...wordBucket]; const dict = lesson.dict; const keys = Object.keys(dict);
@@ -120,7 +122,9 @@ document.getElementById('btn-game').onclick = () => {
 
 // BOWLING QUIZ
 document.getElementById('btn-bowling').onclick = () => {
-    const fn = audio.src.split('/').pop(); const lesson = lessonData[fn][0];
+    const fn = audio.src.split('/').pop(); const lessonArr = lessonData[fn];
+    if(!lessonArr) return;
+    const lesson = lessonArr[0];
     transcript.classList.add('hidden'); gameZone.classList.remove('hidden'); gameBoard.style.display = "none";
     runQuiz(lesson);
 };
@@ -132,7 +136,7 @@ function runQuiz(lesson) {
         const currentFile = audio.src.split('/').pop();
         if(!completedLessons.includes(currentFile)) {
             completedLessons.push(currentFile);
-            localStorage.setItem('completedLoveStories', JSON.stringify(completedLoveStories));
+            localStorage.setItem('completedLoveStories', JSON.stringify(completedLessons));
         }
         feedbackArea.innerHTML = `<h1 style="color:#ccff00; font-size: 50px;">FINISHED!</h1>
                                   <h2 style="font-size: 40px;">QUIZ SCORE: ${totalScore}</h2>
