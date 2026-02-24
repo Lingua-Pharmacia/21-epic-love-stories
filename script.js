@@ -24,7 +24,7 @@ document.getElementById('btn-reset-data').onclick = () => {
     if(confirm("Reset all scores and checkmarks?")) { localStorage.clear(); location.reload(); }
 };
 
-// EPIC LOVE STORIES STATIONS (Exactly as per your root filenames)
+// EPIC LOVE STORIES STATIONS
 const stations = [
     {file:"01_Justinian.mp3", title:"Justinian & Theodora"},
     {file:"02_Tiberius.mp3", title:"Tiberius & Marcus"},
@@ -136,7 +136,7 @@ function runQuiz(lesson) {
         const currentFile = audio.src.split('/').pop();
         if(!completedLessons.includes(currentFile)) {
             completedLessons.push(currentFile);
-            localStorage.setItem('completedLoveStories', JSON.stringify(completedLessons)); // FIXED BUG HERE
+            localStorage.setItem('completedLoveStories', JSON.stringify(completedLessons));
         }
         feedbackArea.innerHTML = `<h1 style="color:#ccff00; font-size: 50px;">FINISHED!</h1>
                                   <h2 style="font-size: 40px;">QUIZ SCORE: ${totalScore}</h2>
@@ -172,8 +172,12 @@ function runQuiz(lesson) {
                 showRes(true, attempts === 0 ? "STRIKE! (+20)" : "SPARE! (+15)", qData, lesson);
             } else {
                 attempts++;
-                if (attempts === 1) { showRes(false, "MISS! TRY AGAIN FOR SPARE", qData, lesson, true); }
-                else { showRes(false, "MISS! (0 pts)", qData, lesson); }
+                if (attempts === 1) { 
+                    showRes(false, "MISS! TRY AGAIN FOR SPARE", qData, lesson, true); 
+                } else { 
+                    // 2ND FAIL: AUTO SHOW ANSWER & HIDE MIC
+                    showRes(false, "MISS! (0 pts)", qData, lesson, false); 
+                }
             }
         };
         rec.onerror = () => btn.classList.remove('active');
@@ -183,13 +187,23 @@ function runQuiz(lesson) {
 function showRes(isCorrect, msg, qData, lesson, retry=false) {
     const area = document.getElementById('res-area');
     area.innerHTML = `<h1 style="color:${isCorrect?'#39ff14':'#f44'}; font-size: 50px;">${msg}</h1>`;
-    if (!retry || isCorrect) {
-        area.innerHTML += `<p class="quiz-q-text">Q: ${qData.q}</p>
-        <p class="quiz-a-text">EN: ${qData.a_en}</p>
-        <p style="color:#888; font-size:30px; font-weight: bold;">TR: ${qData.a_tr}</p>
-        <button id="btn-nxt" class="action-btn-large" style="margin-top:30px;">NEXT QUESTION ⮕</button>`;
+    
+    // IF CORRECT OR IT WAS THE SECOND FAIL (No more retries)
+    if (isCorrect || !retry) {
+        // Disable mic area entirely to prevent third attempts
+        const ui = document.getElementById('quiz-ui');
+        if(ui) ui.classList.add('hidden');
+
+        area.innerHTML += `
+            <p class="quiz-q-text">Q: ${qData.q}</p>
+            <p class="quiz-a-text">EN: ${qData.a_en}</p>
+            <p style="color:#888; font-size:30px; font-weight: bold;">TR: ${qData.a_tr}</p>
+            <button id="btn-nxt" class="action-btn-large" style="margin-top:30px;">NEXT QUESTION ⮕</button>
+        `;
         document.getElementById('btn-nxt').onclick = () => { currentQ++; attempts=0; runQuiz(lesson); };
-    } else {
+    } 
+    // IF FIRST FAIL: SHOW RETRY BUTTON
+    else {
         area.innerHTML += `<button id="btn-re" class="action-btn-large" style="margin-top:30px;">RETRY FOR SPARE</button>`;
         document.getElementById('btn-re').onclick = () => { area.innerHTML = ""; };
     }
