@@ -3,26 +3,16 @@ const splash = document.getElementById('splash-screen'), instr = document.getEle
       playerZone = document.getElementById('player-zone'), audio = document.getElementById('audio-player'),
       transcript = document.getElementById('transcript-box'), popup = document.getElementById('translation-popup'),
       gameZone = document.getElementById('game-zone'), gameBoard = document.getElementById('game-board'),
-      feedbackArea = document.getElementById('quiz-feedback-area'), ptsVal = document.getElementById('points-val'),
-      quizUI = document.getElementById('quiz-ui'); // Mic container
+      feedbackArea = document.getElementById('quiz-feedback-area'), ptsVal = document.getElementById('points-val');
 
-// PERSISTENCE DATA
+// PERSISTENCE
 let lifetimeScore = parseInt(localStorage.getItem('loveStoryScore')) || 0;
 let completedLessons = JSON.parse(localStorage.getItem('completedLoveStories')) || [];
 if(ptsVal) ptsVal.innerText = lifetimeScore;
 
 let wordBucket = []; let currentQ = 0; let attempts = 0; let totalScore = 0; let firstCard = null;
 
-// NAVIGATION
-document.getElementById('btn-start').onclick = () => { splash.classList.add('hidden'); instr.classList.remove('hidden'); };
-document.getElementById('btn-enter').onclick = () => { instr.classList.add('hidden'); app.classList.remove('hidden'); };
-document.getElementById('btn-back').onclick = () => { 
-    playerZone.classList.add('hidden'); grid.classList.remove('hidden'); 
-    transcript.classList.add('hidden'); gameZone.classList.add('hidden'); 
-    audio.pause(); currentQ = 0; totalScore = 0; attempts = 0;
-};
-
-// STATION GENERATION
+// STATIONS
 const stations = [
     {file:"01_Justinian.mp3", title:"Justinian & Theodora"}, {file:"02_Tiberius.mp3", title:"Tiberius & Marcus"},
     {file:"03_Dracula.mp3", title:"Dracula & Mina"}, {file:"04_Tristan.mp3", title:"Tristan & Isolde"},
@@ -45,7 +35,12 @@ stations.forEach((s, i) => {
     grid.appendChild(btn);
 });
 
-// BOWLING QUIZ CORE
+// NAVIGATION
+document.getElementById('btn-start').onclick = () => { splash.classList.add('hidden'); instr.classList.remove('hidden'); };
+document.getElementById('btn-enter').onclick = () => { instr.classList.add('hidden'); app.classList.remove('hidden'); };
+document.getElementById('btn-back').onclick = () => { location.reload(); };
+
+// BOWLING QUIZ LOGIC
 document.getElementById('btn-bowling').onclick = () => {
     const fn = audio.src.split('/').pop(); const lesson = lessonData[fn][0];
     transcript.classList.add('hidden'); gameZone.classList.remove('hidden'); gameBoard.style.display = "none";
@@ -54,58 +49,69 @@ document.getElementById('btn-bowling').onclick = () => {
 };
 
 function runQuiz(lesson) {
-    if (currentQ >= 7) {
-        finishQuiz(); return; 
-    }
+    if (currentQ >= 7) { finishQuiz(); return; }
     const qData = lesson.questions[currentQ];
+    
     feedbackArea.innerHTML = `
         <div id="quiz-container">
             <div class="score-badge">SCORE: ${totalScore} | Q: ${currentQ+1}/7</div>
-            <button id="btn-hear-q" class="mode-btn neon-green" style="margin-bottom:20px;">👂 LISTEN TO QUESTION</button>
-            <div id="quiz-control-box">
-                <button id="btn-speak" class="mic-btn hidden">🎤</button>
-                <div id="res-area"></div>
+            <button id="btn-hear-q" class="mode-btn neon-green">👂 LISTEN TO QUESTION</button>
+            <div id="mic-box" class="hidden" style="margin-top:20px;">
+                <button id="btn-speak" class="mic-btn">🎤</button>
+                <p id="mic-status" style="color:#666;">Ready...</p>
             </div>
+            <div id="res-area"></div>
         </div>
     `;
 
     document.getElementById('btn-hear-q').onclick = () => {
         const utter = new SpeechSynthesisUtterance(qData.q);
-        utter.onend = () => { document.getElementById('btn-speak').classList.remove('hidden'); };
+        utter.onend = () => { document.getElementById('mic-box').classList.remove('hidden'); };
         window.speechSynthesis.speak(utter);
     };
 
-    document.getElementById('btn-speak').onclick = () => {
-        const btn = document.getElementById('btn-speak');
+    document.getElementById('btn-speak').onclick = function() {
+        const btn = this;
+        const status = document.getElementById('mic-status');
         btn.classList.add('active');
-        const rec = new (window.webkitSpeechRecognition || window.Recognition)();
-        rec.lang = 'en-US'; rec.start();
+        status.innerText = "Listening...";
+        
+        // FRESH ENGINE EVERY TIME
+        const rec = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
+        rec.lang = 'en-US';
+        rec.interimResults = false;
 
         rec.onresult = (e) => {
-            btn.classList.add('hidden'); // KILL MIC IMMEDIATELY
+            document.getElementById('mic-box').classList.add('hidden'); // KILL MIC IMMEDIATELY
             const res = e.results[0][0].transcript.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
             const ans = qData.a_en.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
             
             if (res === ans) {
                 let pts = (attempts === 0) ? 20 : 15;
                 totalScore += pts;
-                showFeedback(true, attempts === 0 ? "STRIKE! (+20)" : "SPARE! (+15)", qData, lesson, false);
+                showResult(true, pts === 20 ? "STRIKE! (+20)" : "SPARE! (+15)", qData, lesson);
             } else {
                 attempts++;
                 if (attempts === 1) {
-                    showFeedback(false, "MISS! TRY AGAIN", qData, lesson, true);
+                    showResult(false, "MISS! TRY AGAIN", qData, lesson, true);
                 } else {
-                    showFeedback(false, "MISS! (0 pts)", qData, lesson, false);
+                    showResult(false, "MISS! (0 pts)", qData, lesson, false);
                 }
             }
         };
-        rec.onerror = () => btn.classList.remove('active');
+
+        rec.onerror = () => {
+            btn.classList.remove('active');
+            status.innerText = "Error. Try again.";
+        };
+        
+        rec.start();
     };
 }
 
-function showFeedback(isCorrect, msg, qData, lesson, canRetry) {
+function showResult(isCorrect, msg, qData, lesson, canRetry = false) {
     const area = document.getElementById('res-area');
-    area.innerHTML = `<h1 style="color:${isCorrect?'#39ff14':'#f44'}; font-size: 50px;">${msg}</h1>`;
+    area.innerHTML = `<h1 style="color:${isCorrect?'#39ff14':'#f44'}; font-size: 50px; margin-bottom:10px;">${msg}</h1>`;
     
     if (isCorrect || !canRetry) {
         area.innerHTML += `
@@ -119,7 +125,9 @@ function showFeedback(isCorrect, msg, qData, lesson, canRetry) {
         area.innerHTML += `<button id="btn-retry" class="action-btn-large" style="margin-top:30px;">RETRY FOR SPARE</button>`;
         document.getElementById('btn-retry').onclick = () => {
             area.innerHTML = "";
-            document.getElementById('btn-speak').classList.remove('hidden'); // Bring mic back for 1 last chance
+            document.getElementById('mic-box').classList.remove('hidden'); // Mic is fresh and ready
+            document.getElementById('btn-speak').classList.remove('active');
+            document.getElementById('mic-status').innerText = "Ready for Spare...";
         };
     }
 }
@@ -139,7 +147,7 @@ function finishQuiz() {
     `;
 }
 
-// OTHER MODES
+// OTHER UTILITIES
 document.getElementById('ctrl-play').onclick = () => audio.play();
 document.getElementById('ctrl-pause').onclick = () => audio.pause();
 document.getElementById('ctrl-stop').onclick = () => { audio.pause(); audio.currentTime = 0; };
